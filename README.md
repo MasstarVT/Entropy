@@ -46,7 +46,22 @@ entropy sources mixed in, not a replacement for a real CSPRNG.
 pip install -r requirements.txt
 ```
 
-## Usage
+## GUI
+
+There's also a Tkinter GUI (`Tkinter` ships with Python, so no extra
+dependency beyond what's in `requirements.txt`):
+
+```bash
+python gui.py
+```
+
+Tabs for Photo / Video / Webcam, the same seed-length and `--noise-extract`
+options as the CLI, a live webcam preview, and a Stream mode that keeps
+emitting fresh seeds on an interval (mirrors `webcam --stream`). Capture and
+hashing run on a background thread so the window doesn't freeze. Copy the
+derived seed to the clipboard or save it to a file from the Result panel.
+
+## CLI usage
 
 ```bash
 # Hash a single photo into a 32-byte seed
@@ -101,9 +116,11 @@ instead of seeding anything with this tool's output.
 
 ```
 entropy_wall.py        CLI entry point
+gui.py                  Tkinter GUI front end
 entropy/
   pool.py               EntropyPool: absorb (SHA3-512) + derive (HKDF)
   capture.py            frame sources: image / video file / webcam, + noise extraction
+  pipeline.py            shared "absorb frames into a pool" helper (used by CLI + GUI)
   diagnostics.py        Shannon entropy estimator (sanity check only)
 examples/
   use_seed.py            turns a derived seed into actual random numbers (random.Random / numpy PCG64)

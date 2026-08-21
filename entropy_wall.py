@@ -23,33 +23,13 @@ import argparse
 import sys
 import time
 
-from entropy import EntropyPool, shannon_entropy_bits_per_byte
+from entropy import EntropyPool, run_pool, shannon_entropy_bits_per_byte
 from entropy.capture import (
     extract_noise,
     frames_from_image,
     frames_from_video,
     frames_from_webcam,
 )
-
-
-def _run_pool(frames, *, noise_extract: bool, tag: str) -> tuple:
-    """Absorb a stream of frames into a fresh EntropyPool.
-
-    Returns (pool, raw_byte_sample) where raw_byte_sample is the bytes of
-    the last processed frame, kept around only for the entropy diagnostic.
-    """
-    pool = EntropyPool()
-    previous = None
-    sample = b""
-    for i, frame in enumerate(frames):
-        payload = extract_noise(frame, previous) if noise_extract else frame
-        previous = frame
-        data = payload.tobytes()
-        pool.absorb(data, tag=f"{tag}:{i}")
-        sample = data
-    if pool.frames_absorbed == 0:
-        raise RuntimeError("No frames were captured — nothing to hash.")
-    return pool, sample
 
 
 def _emit(pool: EntropyPool, sample: bytes, args: argparse.Namespace) -> None:
@@ -70,20 +50,20 @@ def _emit(pool: EntropyPool, sample: bytes, args: argparse.Namespace) -> None:
 
 def cmd_image(args: argparse.Namespace) -> None:
     frames = frames_from_image(args.path)
-    pool, sample = _run_pool(frames, noise_extract=args.noise_extract, tag="image")
+    pool, sample = run_pool(frames, noise_extract=args.noise_extract, tag="image")
     _emit(pool, sample, args)
 
 
 def cmd_video(args: argparse.Namespace) -> None:
     frames = frames_from_video(args.path, sample_every=args.sample_every)
-    pool, sample = _run_pool(frames, noise_extract=args.noise_extract, tag="video")
+    pool, sample = run_pool(frames, noise_extract=args.noise_extract, tag="video")
     _emit(pool, sample, args)
 
 
 def cmd_webcam(args: argparse.Namespace) -> None:
     if not args.stream:
         frames = frames_from_webcam(device=args.device, seconds=args.seconds)
-        pool, sample = _run_pool(frames, noise_extract=args.noise_extract, tag="webcam")
+        pool, sample = run_pool(frames, noise_extract=args.noise_extract, tag="webcam")
         _emit(pool, sample, args)
         return
 
