@@ -67,6 +67,17 @@ class EntropyPool:
 
     def derive(self, length: int, info: bytes = b"entropy-wall-v1") -> bytes:
         """HKDF-Extract-and-Expand the pool's state into `length` bytes."""
+        if length < 0:
+            raise ValueError(f"length must be non-negative, got {length}")
+        # HKDF-Expand (RFC 5869 section 2.3) caps output at 255 * HashLen: the
+        # expand loop below numbers each block with a single byte, so it
+        # can't run past counter 255.
+        max_length = 255 * hashlib.sha256().digest_size
+        if length > max_length:
+            raise ValueError(
+                f"length={length} exceeds HKDF's maximum output for SHA-256 "
+                f"({max_length} bytes)"
+            )
         prk = hmac.new(self._salt, self.state(), hashlib.sha256).digest()
         out = b""
         prev = b""

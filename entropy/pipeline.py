@@ -37,3 +37,24 @@ def run_pool(
     if count == 0:
         raise RuntimeError("No frames were captured — nothing to hash.")
     return pool, sample
+
+
+def stream_pool(
+    frames: Iterable[np.ndarray], *, noise_extract: bool = False, tag: str = "frame"
+) -> Iterator[Tuple[EntropyPool, np.ndarray]]:
+    """Absorb frames into one growing EntropyPool, yielding as each arrives.
+
+    Unlike `run_pool`, this is for indefinite/interactive capture (the CLI's
+    `--stream` mode, the GUI's Stream mode): it never returns on its own —
+    the caller drives it (for a `frames` iterator that ends on Ctrl+C, a
+    `--seconds`/stop-event cutoff, etc.) and decides when to `pool.derive()`
+    and emit a seed, e.g. on an interval. Yields `(pool, frame)` after every
+    absorbed frame so callers can also use `frame` for a live preview.
+    """
+    pool = EntropyPool()
+    previous: Optional[np.ndarray] = None
+    for i, frame in enumerate(frames):
+        payload = extract_noise(frame, previous) if noise_extract else frame
+        previous = frame
+        pool.absorb(payload.tobytes(), tag=f"{tag}:{i}")
+        yield pool, frame

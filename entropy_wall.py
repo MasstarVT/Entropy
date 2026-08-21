@@ -23,13 +23,8 @@ import argparse
 import sys
 import time
 
-from entropy import EntropyPool, run_pool, shannon_entropy_bits_per_byte
-from entropy.capture import (
-    extract_noise,
-    frames_from_image,
-    frames_from_video,
-    frames_from_webcam,
-)
+from entropy import EntropyPool, run_pool, shannon_entropy_bits_per_byte, stream_pool
+from entropy.capture import frames_from_image, frames_from_video, frames_from_webcam
 
 
 def _emit(pool: EntropyPool, sample: bytes, args: argparse.Namespace) -> None:
@@ -76,16 +71,10 @@ def cmd_webcam(args: argparse.Namespace) -> None:
         f"{args.interval}s (Ctrl+C to stop)...",
         file=sys.stderr,
     )
-    pool = EntropyPool()
-    previous = None
     last_emit = time.monotonic()
-    i = 0
     try:
-        for frame in frames_from_webcam(device=args.device, seconds=None):
-            payload = extract_noise(frame, previous) if args.noise_extract else frame
-            previous = frame
-            pool.absorb(payload.tobytes(), tag=f"webcam:{i}")
-            i += 1
+        frames = frames_from_webcam(device=args.device, seconds=None)
+        for pool, _frame in stream_pool(frames, noise_extract=args.noise_extract, tag="webcam"):
             now = time.monotonic()
             if now - last_emit >= args.interval:
                 seed = pool.derive(args.length)

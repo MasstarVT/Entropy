@@ -13,6 +13,11 @@ from typing import Iterator, Optional
 import cv2
 import numpy as np
 
+# How long to wait between retries after a failed cap.read(), and how many
+# such failures in a row before giving up on the device entirely.
+_READ_RETRY_DELAY = 0.01
+_MAX_CONSECUTIVE_READ_FAILURES = 100
+
 
 def _open_camera(device: int) -> cv2.VideoCapture:
     """Open a webcam, preferring a faster backend where one is known.
@@ -20,8 +25,18 @@ def _open_camera(device: int) -> cv2.VideoCapture:
     On Windows, OpenCV's default backend auto-probing can take 7-8 seconds
     to open a camera; explicitly requesting DirectShow (CAP_DSHOW) usually
     opens in ~1-2 seconds. Falls back to the default backend if that fails.
+
+    The DirectShow and default (Media Foundation) backends can enumerate
+    multiple cameras in a different order, so index N under one backend
+    isn't guaranteed to be the same physical device as index N under the
+    other. The fast path is only used for the default device (0): the
+    common single-camera case, where there's only one candidate device to
+    pick regardless of backend. Callers who explicitly select a non-default
+    device — presumably because they care which physical camera they get —
+    go through the default backend so the index means what they expect,
+    even though opening it may be slower.
     """
-    if sys.platform == "win32":
+    if sys.platform == "win32" and device == 0:
         cap = cv2.VideoCapture(device, cv2.CAP_DSHOW)
         if cap.isOpened():
             return cap
@@ -71,11 +86,22 @@ def frames_from_webcam(
         )
     start = time.monotonic()
     count = 0
+    consecutive_failures = 0
     try:
         while seconds is None or (time.monotonic() - start) < seconds:
             ok, frame = cap.read()
             if not ok:
+                consecutive_failures += 1
+                if consecutive_failures > _MAX_CONSECUTIVE_READ_FAILURES:
+                    raise RuntimeError(
+                        f"Webcam device {device} stopped returning frames "
+                        "(unplugged, or another app took it over?)."
+                    )
+                # Back off briefly instead of busy-spinning a CPU core while
+                # the device is failing to deliver a frame.
+                time.sleep(_READ_RETRY_DELAY)
                 continue
+            consecutive_failures = 0
             yield frame
             count += 1
             if max_frames is not None and count >= max_frames:

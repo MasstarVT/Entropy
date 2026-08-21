@@ -9,6 +9,6 @@ result with HKDF so the output is a clean, uniformly-distributed seed.
 
 from .pool import EntropyPool
 from .diagnostics import shannon_entropy_bits_per_byte
-from .pipeline import run_pool
+from .pipeline import run_pool, stream_pool
 
-__all__ = ["EntropyPool", "shannon_entropy_bits_per_byte", "run_pool"]
+__all__ = ["EntropyPool", "shannon_entropy_bits_per_byte", "run_pool", "stream_pool"]

@@ -21,8 +21,8 @@ import time
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-from entropy import EntropyPool, run_pool, shannon_entropy_bits_per_byte
-from entropy.capture import extract_noise, frames_from_image, frames_from_video, frames_from_webcam
+from entropy import EntropyPool, run_pool, shannon_entropy_bits_per_byte, stream_pool
+from entropy.capture import frames_from_image, frames_from_video, frames_from_webcam
 
 try:
     import cv2
@@ -244,10 +244,16 @@ class EntropyWallGUI(tk.Tk):
     # -------------------------------------------------------- dispatch --
 
     def _on_generate(self) -> None:
-        if self._busy:
-            return
         tab_index = self.notebook.index(self.notebook.select())
-        if tab_index == 2 and self.stream_var.get():
+        on_webcam_stream = tab_index == 2 and self.stream_var.get()
+        if on_webcam_stream and self._streaming:
+            # Already streaming: this click means "stop", always allowed —
+            # even while _busy/_streaming would otherwise block below.
+            self._toggle_stream()
+            return
+        if self._busy or self._streaming:
+            return
+        if on_webcam_stream:
             self._toggle_stream()
             return
 
@@ -315,22 +321,19 @@ class EntropyWallGUI(tk.Tk):
 
         self._stream_stop.clear()
         self._streaming = True
+        # Reuse the busy-state widget disabling so the Photo/Video tabs
+        # can't be used to start an overlapping capture while streaming.
+        self._set_busy(True)
         self.generate_btn.config(text="Stop Streaming")
         self.status_var.set(f"Streaming from device {device}...")
 
         def work():
-            pool = EntropyPool()
-            previous = None
             last_emit = time.monotonic()
-            i = 0
             try:
-                for frame in frames_from_webcam(device=device, seconds=None):
+                frames = frames_from_webcam(device=device, seconds=None)
+                for pool, frame in stream_pool(frames, noise_extract=noise_extract, tag="webcam"):
                     if self._stream_stop.is_set():
                         break
-                    payload = extract_noise(frame, previous) if noise_extract else frame
-                    previous = frame
-                    pool.absorb(payload.tobytes(), tag=f"webcam:{i}")
-                    i += 1
                     now = time.monotonic()
                     do_emit = now - last_emit >= interval
                     self._queue.put(("stream_frame", frame, pool if do_emit else None, length))
@@ -378,6 +381,7 @@ class EntropyWallGUI(tk.Tk):
                 self._log(f"[{pool.frames_absorbed} frames] {seed.hex()}")
         elif kind == "stream_stopped":
             self._streaming = False
+            self._set_busy(False)
             self.generate_btn.config(text="Start Streaming")
             self.status_var.set("Stream stopped.")
 
