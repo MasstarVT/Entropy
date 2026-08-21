@@ -73,7 +73,7 @@ def demo_numpy(seed: bytes) -> None:
     # keeps all of the entropy_wall output in play (not just the first 8
     # bytes the way int.from_bytes(seed[:8]) would).
     seed_int = int.from_bytes(seed, "big")
-    rng = np.random.default_rng(seed_int)  # default_rng uses PCG64 internally
+    rng = np.random.default_rng(seed_int)
     print("5 random floats :", np.round(rng.random(5), 4))
     print("normal(0,1) x3  :", np.round(rng.normal(size=3), 4))
     print("random ints 0-99:", rng.integers(0, 100, size=5))

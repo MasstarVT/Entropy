@@ -59,8 +59,6 @@ class EntropyWallGUI(tk.Tk):
         self.after(50, self._poll_queue)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-    # ---------------------------------------------------------------- UI --
-
     def _build_ui(self) -> None:
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(padx=10, pady=(10, 0), fill="x")
@@ -73,7 +71,6 @@ class EntropyWallGUI(tk.Tk):
         self.notebook.add(self.webcam_tab, text="Webcam")
         self.notebook.bind("<<NotebookTabChanged>>", lambda e: self._sync_generate_button())
 
-        # --- shared options ---
         opts = ttk.LabelFrame(self, text="Options")
         opts.pack(padx=10, pady=8, fill="x")
 
@@ -89,7 +86,6 @@ class EntropyWallGUI(tk.Tk):
             variable=self.noise_var,
         ).grid(row=0, column=2, sticky="w", padx=5, pady=5)
 
-        # --- action row ---
         actions = ttk.Frame(self)
         actions.pack(padx=10, pady=(0, 8), fill="x")
         self.generate_btn = ttk.Button(actions, text="Generate", command=self._on_generate)
@@ -97,7 +93,6 @@ class EntropyWallGUI(tk.Tk):
         self.status_var = tk.StringVar(value="Ready.")
         ttk.Label(actions, textvariable=self.status_var).pack(side="left", padx=10)
 
-        # --- results ---
         results = ttk.LabelFrame(self, text="Result")
         results.pack(padx=10, pady=(0, 10), fill="both", expand=True)
 
@@ -189,8 +184,6 @@ class EntropyWallGUI(tk.Tk):
 
         return f
 
-    # ------------------------------------------------------------- utils --
-
     def _pick_photo(self) -> None:
         path = filedialog.askopenfilename(
             title="Choose a photo",
@@ -249,8 +242,6 @@ class EntropyWallGUI(tk.Tk):
                     child.config(state=state)
                 except tk.TclError:
                     pass
-
-    # -------------------------------------------------------- dispatch --
 
     def _on_generate(self) -> None:
         tab_index = self.notebook.index(self.notebook.select())
@@ -312,8 +303,6 @@ class EntropyWallGUI(tk.Tk):
         self.status_var.set("Working...")
         threading.Thread(target=work, daemon=True).start()
 
-    # ------------------------------------------------------ stream mode --
-
     def _toggle_stream(self) -> None:
         if self._streaming:
             self._stream_stop.set()
@@ -354,8 +343,6 @@ class EntropyWallGUI(tk.Tk):
                 self._queue.put(("stream_stopped",))
 
         threading.Thread(target=work, daemon=True).start()
-
-    # ----------------------------------------------------------- queue --
 
     def _poll_queue(self) -> None:
         try:

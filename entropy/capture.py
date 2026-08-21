@@ -13,8 +13,6 @@ from typing import Iterator, Optional
 import cv2
 import numpy as np
 
-# How long to wait between retries after a failed cap.read(), and how many
-# such failures in a row before giving up on the device entirely.
 _READ_RETRY_DELAY = 0.01
 _MAX_CONSECUTIVE_READ_FAILURES = 100
 
