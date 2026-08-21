@@ -6,11 +6,27 @@ isolates the parts of a frame most likely to carry real physical randomness
 
 from __future__ import annotations
 
+import sys
 import time
 from typing import Iterator, Optional
 
 import cv2
 import numpy as np
+
+
+def _open_camera(device: int) -> cv2.VideoCapture:
+    """Open a webcam, preferring a faster backend where one is known.
+
+    On Windows, OpenCV's default backend auto-probing can take 7-8 seconds
+    to open a camera; explicitly requesting DirectShow (CAP_DSHOW) usually
+    opens in ~1-2 seconds. Falls back to the default backend if that fails.
+    """
+    if sys.platform == "win32":
+        cap = cv2.VideoCapture(device, cv2.CAP_DSHOW)
+        if cap.isOpened():
+            return cap
+        cap.release()
+    return cv2.VideoCapture(device)
 
 
 def frames_from_image(path: str) -> Iterator[np.ndarray]:
@@ -47,7 +63,7 @@ def frames_from_webcam(
     `seconds=None` with a `max_frames` cap (or Ctrl+C) runs indefinitely —
     used for the continuous --stream mode.
     """
-    cap = cv2.VideoCapture(device)
+    cap = _open_camera(device)
     if not cap.isOpened():
         raise RuntimeError(
             f"Could not open webcam device {device}. Is it in use by another "
