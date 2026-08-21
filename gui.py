@@ -42,7 +42,7 @@ class EntropyWallGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Entropy Wall")
-        self.resizable(False, False)
+        self.resizable(True, True)
 
         self._queue: "queue.Queue[tuple]" = queue.Queue()
         self._busy = False
@@ -52,6 +52,10 @@ class EntropyWallGUI(tk.Tk):
         self._preview_photo = None  # keep a reference or Tk garbage-collects it
 
         self._build_ui()
+        # Don't let the window shrink smaller than its natural layout — below
+        # that, widgets start clipping instead of reflowing.
+        self.update_idletasks()
+        self.minsize(self.winfo_reqwidth(), self.winfo_reqheight())
         self.after(50, self._poll_queue)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -95,7 +99,7 @@ class EntropyWallGUI(tk.Tk):
 
         # --- results ---
         results = ttk.LabelFrame(self, text="Result")
-        results.pack(padx=10, pady=(0, 10), fill="both")
+        results.pack(padx=10, pady=(0, 10), fill="both", expand=True)
 
         self.info_var = tk.StringVar(value="")
         ttk.Label(results, textvariable=self.info_var, justify="left").pack(
@@ -109,8 +113,13 @@ class EntropyWallGUI(tk.Tk):
         ttk.Button(seed_row, text="Copy", command=self._copy_seed, width=6).pack(side="left", padx=(4, 0))
         ttk.Button(seed_row, text="Save...", command=self._save_seed, width=7).pack(side="left", padx=(4, 0))
 
-        self.log = tk.Text(results, height=6, width=64, font=("Consolas", 9), state="disabled")
-        self.log.pack(padx=8, pady=(0, 8), fill="both")
+        log_frame = ttk.Frame(results)
+        log_frame.pack(padx=8, pady=(0, 8), fill="both", expand=True)
+        self.log = tk.Text(log_frame, height=6, width=64, font=("Consolas", 9), state="disabled")
+        log_scroll = ttk.Scrollbar(log_frame, orient="vertical", command=self.log.yview)
+        self.log.configure(yscrollcommand=log_scroll.set)
+        self.log.pack(side="left", fill="both", expand=True)
+        log_scroll.pack(side="left", fill="y")
 
     def _build_photo_tab(self) -> ttk.Frame:
         f = ttk.Frame(self.notebook, padding=10)
